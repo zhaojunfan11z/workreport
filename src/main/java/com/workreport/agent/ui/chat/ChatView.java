@@ -60,7 +60,7 @@ public final class ChatView extends JPanel implements TranscriptView {
         super(new BorderLayout());
         setOpaque(false);
 
-        content.setLayout(new BlockListLayout(UiMetrics.scale(10)));
+        content.setLayout(new BlockListLayout(UiMetrics.scale(12)));
         content.setOpaque(false);
         content.setBorder(new EmptyBorder(UiMetrics.scale(12), UiMetrics.scale(10),
                 UiMetrics.scale(14), UiMetrics.scale(10)));

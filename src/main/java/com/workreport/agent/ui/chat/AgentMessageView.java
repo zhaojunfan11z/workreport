@@ -10,11 +10,13 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.util.List;
 
-// Left-aligned agent answer: a muted role label plus meta line and hover-revealed actions, with
-// the Markdown body mounted as block views directly on the panel (no card chrome).
-// 靠左的助手回答：中性角色标签 + 元信息，悬停浮出动作；正文块直接铺在面板上，不画卡片。
+// Left-aligned agent answer card: raised surface, hairline border, a role chip plus meta line and
+// hover-revealed actions, with the Markdown body mounted as block views underneath.
+// 靠左的助手回答卡片：抬高底色 + 细描边，头部是角色 chip 与元信息，悬停浮出动作，
+// 正文按 Markdown 块挂载在下方。
 public final class AgentMessageView extends ChatRowView {
 
     private static final int BLINK_MS = 500;
@@ -170,8 +172,13 @@ public final class AgentMessageView extends ChatRowView {
 
     @Override
     protected void paintBlock(Graphics2D g2, int width, int height) {
-        // Qoder renders assistant text straight on the panel: no card fill and no outline.
-        // Qoder 的助手消息直接铺在面板上：不画卡片底色，也不描边。
+        int arc = UiMetrics.radiusCard();
+        g2.setColor(UiTheme.RAISED);
+        g2.fill(new RoundRectangle2D.Float(0, 0, width, height, arc, arc));
+        g2.setColor(UiTheme.BORDER);
+        g2.setStroke(new BasicStroke(1f));
+        g2.draw(new RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc, arc));
+
         paintRoleChip(g2);
         paintMeta(g2);
         if (hovered || copied) {
@@ -180,14 +187,16 @@ public final class AgentMessageView extends ChatRowView {
     }
 
     private void paintRoleChip(Graphics2D g2) {
-        // Muted label instead of an accent chip; Qoder has no coloured role badge.
-        // 中性小字代替强调色 chip：Qoder 没有彩色角色徽标。
+        int arc = UiMetrics.radiusChip();
+        g2.setColor(UiTheme.accentSoft(56));
+        g2.fill(new RoundRectangle2D.Float(chipArea.x, chipArea.y, chipArea.width, chipArea.height, arc, arc));
         Font font = UiTheme.small().deriveFont(Font.BOLD);
         FontMetrics metrics = UiMetrics.metrics(font);
         g2.setFont(font);
-        g2.setColor(UiTheme.muted());
+        g2.setColor(UiTheme.ACCENT);
         int baseline = chipArea.y + (chipArea.height - metrics.getHeight()) / 2 + metrics.getAscent();
-        g2.drawString(AgentBundle.message("ui.chat.agent"), chipArea.x, baseline);
+        g2.drawString(AgentBundle.message("ui.chat.agent"),
+                chipArea.x + UiMetrics.scale(6), baseline);
     }
 
     private void paintMeta(Graphics2D g2) {
