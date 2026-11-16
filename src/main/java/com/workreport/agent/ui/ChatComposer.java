@@ -84,7 +84,8 @@ public final class ChatComposer extends JPanel {
     private final UiButton modelButton;
     private final UiButton autoButton;
     private final ComposerBox box;
-    private final JPanel toolbar;
+    private final JPanel innerBar;
+    private final JPanel footerBar;
 
     private List<String> models = List.of();
     private String activeModel = "";
@@ -111,9 +112,12 @@ public final class ChatComposer extends JPanel {
         inputScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         inputScroll.getVerticalScrollBar().setUnitIncrement(JBUI.scale(16));
 
-        attachButton = new UiButton(null, UiIcons.icon("attach"), UiButton.Kind.ICON);
+        // Qoder style: a compact "＋ 添加上下文" chip inside the box instead of a bare icon.
+        // Qoder 风格：框内是「＋ 添加上下文」，不再是一个裸图标。
+        attachButton = new UiButton(AgentBundle.message("composer.add.context"),
+                UiIcons.icon("add"), UiButton.Kind.GHOST);
         attachButton.setToolTipText(AgentBundle.message("composer.attach.tip"));
-        attachButton.setPadding(5, 5);
+        attachButton.setPadding(4, 2);
         attachButton.addActionListener(e -> showAttachMenu());
 
         settingsButton = new UiButton(null, UiIcons.settings(), UiButton.Kind.ICON);
@@ -127,7 +131,10 @@ public final class ChatComposer extends JPanel {
         stopButton.addActionListener(e -> listener.onStop());
 
         sendButton = new UiButton(null, new ArrowIcon(JBUI.scale(14)), UiButton.Kind.SOLID);
-        sendButton.setCircular(true);
+        // Qoder's send key is a green rounded square, not an accent circle.
+        // Qoder 的发送键是绿色圆角方形，不是强调色圆形。
+        sendButton.setFill(UiTheme.SEND, UiTheme.SEND_HOVER);
+        sendButton.setCircular(false);
         sendButton.setPadding(7, 7);
         sendButton.setToolTipText(AgentBundle.message("ui.composer.send.tip"));
         sendButton.addActionListener(e -> triggerSend());
@@ -146,12 +153,13 @@ public final class ChatComposer extends JPanel {
             listener.onAutoAcceptChanged(next);
         });
 
-        toolbar = buildToolbar();
-        box = new ComposerBox(inputScroll);
+        innerBar = buildInnerBar();
+        footerBar = buildFooterBar();
+        box = new ComposerBox(inputScroll, innerBar);
 
         add(attachmentStrip, BorderLayout.NORTH);
         add(box, BorderLayout.CENTER);
-        add(toolbar, BorderLayout.SOUTH);
+        add(footerBar, BorderLayout.SOUTH);
 
         installInputBindings();
         installDropSupport();
@@ -340,22 +348,41 @@ public final class ChatComposer extends JPanel {
         return name.length() <= 28 ? name : name.substring(0, 25) + "...";
     }
 
-    private JPanel buildToolbar() {
+    // Inside the box: "＋ 添加上下文" on the left, stop/send on the right.
+    // 框内一行：左侧添加上下文，右侧停止/发送。
+    private JPanel buildInnerBar() {
+        JPanel bar = new JPanel(new BorderLayout(UiMetrics.s(), 0));
+        bar.setOpaque(false);
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        left.setOpaque(false);
+        left.add(attachButton);
+
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, UiMetrics.xs(), 0));
+        right.setOpaque(false);
+        right.add(stopButton);
+        right.add(sendButton);
+
+        bar.add(left, BorderLayout.WEST);
+        bar.add(right, BorderLayout.EAST);
+        return bar;
+    }
+
+    // Outside the box: model picker on the left, auto-run and settings on the right.
+    // 框外一行：左侧模型选择器，右侧自动执行与设置。
+    private JPanel buildFooterBar() {
         JPanel bar = new JPanel(new BorderLayout(UiMetrics.s(), 0));
         bar.setOpaque(false);
         bar.setBorder(new EmptyBorder(UiMetrics.xs(), 0, 0, 0));
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, UiMetrics.xs(), 0));
         left.setOpaque(false);
-        left.add(attachButton);
         left.add(modelButton);
         left.add(autoButton);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, UiMetrics.xs(), 0));
         right.setOpaque(false);
         right.add(settingsButton);
-        right.add(stopButton);
-        right.add(sendButton);
 
         bar.add(left, BorderLayout.WEST);
         bar.add(right, BorderLayout.EAST);
@@ -417,9 +444,12 @@ public final class ChatComposer extends JPanel {
 
     private int chromeHeight() {
         Insets outer = getInsets();
+        Insets boxInsets = box.getInsets();
         int strip = attachmentStrip.isVisible() ? attachmentStrip.getPreferredSize().height + UiMetrics.s() : 0;
-        return outer.top + outer.bottom + strip + toolbar.getPreferredSize().height + UiMetrics.s()
-                + JBUI.scale(18);
+        // Box padding + its inner row, plus the footer row that now sits outside the box.
+        // 框内上下内边距 + 内嵌行，再加上移到框外的底部行。
+        return outer.top + outer.bottom + strip + footerBar.getPreferredSize().height + UiMetrics.s()
+                + boxInsets.top + boxInsets.bottom + innerBar.getPreferredSize().height + UiMetrics.xs();
     }
 
     // Grow the input with its content and tell the owner how tall the composer wants to be.
@@ -455,17 +485,19 @@ public final class ChatComposer extends JPanel {
 
     // ------------------------------------------------------------------ inner pieces
 
-    // Floating card behind the text area: raised surface, 1 px border and a 2 px focus ring.
-    // 输入框底板：抬高底色 + 1 px 描边，聚焦时加 2 px 焦点环。
+    // Floating card behind the text area: a soft neutral fill and a 2 px focus ring, with no
+    // outline — Qoder's composer is a borderless grey block.
+    // 输入框底板：柔和中性底色 + 2 px 焦点环，不描边—— Qoder 的输入框是无边框的灰块。
     private final class ComposerBox extends JPanel {
 
         private float focus;
 
-        ComposerBox(JComponent content) {
-            super(new BorderLayout());
+        ComposerBox(JComponent content, JComponent inner) {
+            super(new BorderLayout(0, UiMetrics.xs()));
             setOpaque(false);
-            setBorder(new EmptyBorder(UiMetrics.m(), UiMetrics.l(), UiMetrics.m(), UiMetrics.l()));
+            setBorder(new EmptyBorder(UiMetrics.m(), UiMetrics.l(), UiMetrics.s(), UiMetrics.l()));
             add(content, BorderLayout.CENTER);
+            add(inner, BorderLayout.SOUTH);
             input.addFocusListener(new FocusAdapter() {
                 @Override
                 public void focusGained(FocusEvent e) {
@@ -493,41 +525,17 @@ public final class ChatComposer extends JPanel {
             int arc = UiMetrics.radiusInput();
             int width = getWidth();
             int height = getHeight();
-            g2.setColor(UiTheme.RAISED);
+            g2.setColor(UiTheme.SUBTLE);
             g2.fill(new RoundRectangle2D.Float(0, 0, width, height, arc, arc));
-            g2.setColor(UiTheme.BORDER);
-            g2.setStroke(new BasicStroke(1f));
-            g2.draw(new RoundRectangle2D.Float(0.5f, 0.5f, width - 1f, height - 1f, arc, arc));
             if (focus > 0.01f) {
                 g2.setColor(UiTheme.withAlpha(UiTheme.ACCENT, Math.round(90 * focus)));
                 g2.setStroke(new BasicStroke(JBUI.scale(2f)));
                 g2.draw(new RoundRectangle2D.Float(1f, 1f, width - 2f, height - 2f, arc, arc));
             }
-            paintKeyHint(g2);
             g2.dispose();
             super.paintComponent(g);
         }
 
-        // Bottom-right shortcut reminder, only while the box is empty.
-        // 右下角的快捷键提示，只在空输入时显示。
-        private void paintKeyHint(Graphics2D g2) {
-            if (busy || !input.getText().isEmpty()) {
-                return;
-            }
-            Font font = UiTheme.small();
-            FontMetrics metrics = UiMetrics.metrics(font);
-            String hint = AgentBundle.message("ui.composer.keys");
-            int x = getWidth() - getInsets().right - metrics.stringWidth(hint);
-            int y = getHeight() - getInsets().bottom + metrics.getAscent() + JBUI.scale(1);
-            if (x < getInsets().left || y > getHeight()) {
-                return;
-            }
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            g2.setFont(font);
-            g2.setColor(UiTheme.muted());
-            g2.drawString(hint, x, y);
-        }
     }
 
     // FlowLayout never wraps in preferredLayoutSize (only in layoutContainer), so the strip
