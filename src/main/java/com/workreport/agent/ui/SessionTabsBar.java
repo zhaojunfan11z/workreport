@@ -273,7 +273,7 @@ public final class SessionTabsBar extends JPanel {
         // ------------------------------------------------------------ layout
 
         private int gap() {
-            return JBUI.scale(3);
+            return JBUI.scale(4);
         }
 
         private int minTabWidth() {
@@ -391,13 +391,21 @@ public final class SessionTabsBar extends JPanel {
 
             float alpha = isSelected ? selectionFade : fade;
             if (alpha > 0.01f) {
-                // Qoder-style tab: one flat neutral wash for hover and selection, with the selected
-                // label in bold instead of an accent pill plus an underline.
-                // Qoder 式标签：悬停与选中都用中性浅底，选中靠加粗区分，不再画强调色胶囊与底边条。
-                Color base = isSelected ? UiTheme.BUBBLE : UiTheme.HOVER;
-                g2.setColor(UiTheme.withAlpha(base, Math.round(255 * Math.min(1f, alpha))));
+                Color fill = isSelected ? UiTheme.ACCENT_SOFT : UiTheme.withAlpha(UiTheme.HOVER,
+                        Math.round(255 * Math.min(1f, alpha)));
+                g2.setColor(fill);
                 g2.fill(new RoundRectangle2D.Float(bounds.x, bounds.y, bounds.width, bounds.height,
                         arc, arc));
+            }
+            if (isSelected) {
+                // 2 px accent indicator pinned to the bottom edge of the pill.
+                // 选中标签底部 2 px 强调色指示条。
+                int indicatorWidth = Math.round(bounds.width * selectionFade);
+                g2.setColor(UiTheme.ACCENT);
+                g2.fill(new RoundRectangle2D.Float(
+                        bounds.x + (bounds.width - indicatorWidth) / 2f,
+                        bounds.y + bounds.height - JBUI.scale(2f),
+                        indicatorWidth, JBUI.scale(2f), JBUI.scale(2f), JBUI.scale(2f)));
             }
 
             Font font = isSelected ? UiTheme.bold() : UiTheme.font();
