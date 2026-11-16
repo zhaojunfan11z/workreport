@@ -10,13 +10,16 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
-# The Core and the plugin must report one version, so take it from pom.xml.
+# The Core and the plugin must report one version, so take it from gradle.properties.
 # Read as explicit UTF-8: Windows PowerShell 5.1 otherwise mangles non-ASCII
-# comments in the POM.
-# Core 与插件必须同一个版本号：显式按 UTF-8 读取 pom.xml，避免 5.1 误判编码。
-$pomPath = Join-Path $root "pom.xml"
-[xml]$pom = [System.IO.File]::ReadAllText($pomPath, [System.Text.Encoding]::UTF8)
-$env:AGENT_CORE_VERSION = [string]$pom.project.version
+# comments in the properties file.
+# Core 与插件必须同一个版本号：显式按 UTF-8 读取 gradle.properties，避免 5.1 误判编码。
+$propsPath = Join-Path $root "gradle.properties"
+$versionLine = [System.IO.File]::ReadAllLines($propsPath, [System.Text.Encoding]::UTF8) |
+    Where-Object { $_ -match '^\s*version\s*=' } |
+    Select-Object -First 1
+if (-not $versionLine) { throw "version= not found in gradle.properties" }
+$env:AGENT_CORE_VERSION = ($versionLine -split '=', 2)[1].Trim()
 Write-Host "Core version: $env:AGENT_CORE_VERSION"
 
 Push-Location (Join-Path $root "core")

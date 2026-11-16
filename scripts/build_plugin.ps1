@@ -45,14 +45,51 @@ try {
         throw "core/dist/agent-core* is missing: the plugin zip would ship without a Core (run without -SkipCore)"
     }
 
-    Write-Host "== mvn package =="
-    & mvn -q -DskipTests package
-    if ($LASTEXITCODE -ne 0) { throw "mvn package failed" }
+    Write-Host "== gradlew buildPlugin =="
+    # The plugin targets Java 21 bytecode, so Gradle must run on a JDK 21+ VM.
+    # 插件目标是 Java 21 字节码，Gradle 必须跑在 JDK 21+ 上。
+    $jdkMajor = 0
+    if ($env:JAVA_HOME) {
+        $releaseFile = Join-Path $env:JAVA_HOME "release"
+        if (Test-Path $releaseFile) {
+            $line = Select-String -Path $releaseFile -Pattern '^JAVA_VERSION=' | Select-Object -First 1
+            if ($line -and ($line.Line -match 'JAVA_VERSION="?(\d+)')) { $jdkMajor = [int]$Matches[1] }
+        }
+    }
+    if ($jdkMajor -lt 21) {
+        throw "JAVA_HOME must point to a JDK 21+ (current: '$env:JAVA_HOME'). Install JDK 21, or on IDEA installs set JAVA_HOME to '<IDE>\jbr' which is 25."
+    }
 
-    $zip = Get-ChildItem (Join-Path $root "target") -Filter "*.zip" -File |
+    # Reuse the local IDE install when IDEA_HOME is unset: no ~1.5 GB platform download.
+    # 未设置 IDEA_HOME 时自动找本机 IDEA，避免 Gradle 再下 1.5 GB 平台包。
+    if (-not $env:IDEA_HOME) {
+        $ideRoots = @(
+            (Join-Path $env:LOCALAPPDATA "Programs"),
+            "C:\Program Files\JetBrains",
+            "D:\"
+        )
+        $installs = foreach ($r in $ideRoots) {
+            if (Test-Path $r) {
+                Get-ChildItem $r -Directory -Filter "IntelliJ IDEA*" -ErrorAction SilentlyContinue
+            }
+        }
+        $pick = $installs |
+            Where-Object { Test-Path (Join-Path $_.FullName "build.txt") } |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+        if ($pick) {
+            $env:IDEA_HOME = $pick.FullName
+            Write-Host "IDEA_HOME: $env:IDEA_HOME"
+        }
+    }
+
+    & .\gradlew.bat --console=plain buildPlugin
+    if ($LASTEXITCODE -ne 0) { throw "gradlew buildPlugin failed" }
+
+    $zip = Get-ChildItem (Join-Path $root "build/distributions") -Filter "*.zip" -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
-    if (-not $zip) { throw "no plugin zip produced under target/" }
+    if (-not $zip) { throw "no plugin zip produced under build/distributions" }
 
     $sizeMb = [math]::Round($zip.Length / 1MB, 1)
     Write-Host ""

@@ -46,8 +46,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
       - name: Compile plugin
-        run: mvn -q -DskipTests compile
+        run: |
+          chmod +x gradlew
+          ./gradlew --console=plain classes
 
   vscode:
     name: vscode extension
@@ -122,9 +125,11 @@ jobs:
       - name: Resolve version
         shell: powershell
         run: |
-          $text = [System.IO.File]::ReadAllText("$PWD/pom.xml", [System.Text.Encoding]::UTF8)
-          [xml]$pom = $text
-          "AGENT_CORE_VERSION=$($pom.project.version)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $line = Get-Content "$PWD/gradle.properties" |
+            Where-Object { $_ -match '^version=' } |
+            Select-Object -First 1
+          if (-not $line) { throw 'version= not found in gradle.properties' }
+          "AGENT_CORE_VERSION=$($line.Split('=')[1].Trim())" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Build executable
         working-directory: core
         run: python -m PyInstaller --clean --noconfirm packaging/agent-core.spec
@@ -149,13 +154,15 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
       - name: Package plugin with bundled core
-        run: mvn -q -DskipTests package
+        shell: powershell
+        run: .\gradlew.bat --console=plain buildPlugin
       - name: Verify bundled core in plugin zip
         shell: powershell
         run: |
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = Get-ChildItem target/*.zip | Select-Object -First 1
+          $zip = Get-ChildItem build/distributions/*.zip | Select-Object -First 1
           if (-not $zip) { throw 'plugin zip not produced' }
           $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
           $entry = $archive.Entries | Where-Object { $_.FullName -like '*agent-core/agent-core.exe' }

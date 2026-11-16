@@ -65,7 +65,12 @@ if (-not $SkipNode) {
 if (-not $SkipJava) {
     Push-Location $root
     try {
-        Invoke-Step "intellij compile" { mvn -q -DskipTests compile }
+        # Point IDEA_HOME at the local IDE install to avoid the ~1.5 GB platform download.
+        # 本机装了 IDEA 时设置 IDEA_HOME，可省掉 1.5 GB 平台包下载。
+        if (-not $env:IDEA_HOME) {
+            Write-Host "tip: set IDEA_HOME to the IDE folder (e.g. 'D:\IntelliJ IDEA 2026.3') to reuse the local platform"
+        }
+        Invoke-Step "intellij compile" { & (Join-Path $root "gradlew.bat") --console=plain classes }
     }
     finally {
         Pop-Location
