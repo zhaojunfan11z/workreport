@@ -1,6 +1,7 @@
 package com.workreport.agent.ui.design;
 
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.util.IconUtil;
 import com.intellij.util.ui.EmptyIcon;
 import org.jetbrains.annotations.NotNull;
@@ -21,6 +22,7 @@ public final class UiIcons {
     private UiIcons() {
     }
 
+    private static final Logger LOG = Logger.getInstance(UiIcons.class);
     private static final Map<String, Icon> CACHE = new ConcurrentHashMap<>();
 
     // Load /icons/<name>.svg from the plugin resources; a missing file degrades to an empty icon
@@ -28,11 +30,19 @@ public final class UiIcons {
     // 从插件资源加载 /icons/<name>.svg；文件缺失时退化为空图标，绝不在 EDT 上抛异常。
     public static @NotNull Icon icon(@NotNull String name) {
         return CACHE.computeIfAbsent(name, key -> {
+            String path = "/icons/" + key + ".svg";
             try {
-                return com.intellij.openapi.util.IconLoader.getIcon("/icons/" + key + ".svg", UiIcons.class);
+                Icon loaded = com.intellij.openapi.util.IconLoader.getIcon(path, UiIcons.class);
+                if (loaded != null && loaded.getIconWidth() > 0) {
+                    return loaded;
+                }
+                // A mistyped name silently removes its button, so leave a line in idea.log.
+                // 写错图标名会让对应按钮静默消失，因此在 idea.log 留一行线索。
+                LOG.warn("Icon missing or empty: " + path);
             } catch (Exception e) {
-                return EmptyIcon.create(16);
+                LOG.warn("Icon not found: " + path, e);
             }
+            return EmptyIcon.create(16);
         });
     }
 
