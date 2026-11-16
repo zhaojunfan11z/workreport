@@ -36,8 +36,6 @@ public final class UiButton extends JComponent {
 
     private String text;
     private Icon icon;
-    private Color fill;
-    private Color fillHover;
     private boolean hovered;
     private boolean pressed;
     private boolean selected;
@@ -132,14 +130,6 @@ public final class UiButton extends JComponent {
         revalidate();
     }
 
-    // Override the SOLID fill; the send button uses Qoder green instead of the accent.
-    // 覆盖 SOLID 填充色；发送键用 Qoder 绿而不是强调色。
-    public void setFill(@Nullable Color normal, @Nullable Color hovered) {
-        fill = normal;
-        fillHover = hovered;
-        repaint();
-    }
-
     public void doClick() {
         if (!isEnabled()) {
             return;
@@ -226,16 +216,7 @@ public final class UiButton extends JComponent {
 
         float arc = arc(width, height);
         Color background = switch (kind) {
-            case SOLID -> {
-                Color base = fill != null ? fill : UiTheme.ACCENT;
-                if (!isEnabled()) {
-                    yield base;
-                }
-                if (pressed) {
-                    yield mix(base, Color.BLACK, 0.12f);
-                }
-                yield hovered && fillHover != null ? fillHover : base;
-            }
+            case SOLID -> UiTheme.ACCENT;
             case OUTLINE -> selected ? UiTheme.ACCENT_SOFT : null;
             default -> selected
                     ? UiTheme.withAlpha(UiTheme.HOVER, 255)
@@ -276,15 +257,6 @@ public final class UiButton extends JComponent {
             g2.draw(new RoundRectangle2D.Float(1f, 1f, width - 2f, height - 2f, arc, arc));
         }
         g2.dispose();
-    }
-
-    // Blend two colours keeping the base alpha; used for the SOLID press feedback.
-    // 保留基色 alpha 的两色混合，用于 SOLID 按下反馈。
-    private static Color mix(Color base, Color other, float ratio) {
-        int r = Math.round(base.getRed() + (other.getRed() - base.getRed()) * ratio);
-        int g = Math.round(base.getGreen() + (other.getGreen() - base.getGreen()) * ratio);
-        int b = Math.round(base.getBlue() + (other.getBlue() - base.getBlue()) * ratio);
-        return new Color(r, g, b, base.getAlpha());
     }
 
     private void paintContent(Graphics2D g2, Color foreground, int width, int height) {
