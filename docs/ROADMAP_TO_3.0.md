@@ -25,7 +25,7 @@
 补充约束（沿用既有工程规范）：
 
 - Core 不直接写用户文件，所有文件/终端动作经 Shell 执行；协议是唯一契约。
-- 版本号规则：新增能力升 minor，修复/收口升 patch；每次发布必须同步 README / USER_GUIDE / 详设 / `pom.xml` / `plugin.xml`。
+- 版本号规则：新增能力升 minor，修复/收口升 patch；每次发布必须同步 README / USER_GUIDE / 详设 / `gradle.properties` / `plugin.xml`。
 - 提交按约定式提交拆分，push 由维护者手动执行。
 
 ---
@@ -106,7 +106,7 @@ __version__ = _resolve_version()
 - `core/pyproject.toml` 的 `version` 保持 `0.1.0`（pip 安装时用），发布构建时由脚本导出环境变量覆盖。
 - `core/packaging/agent-core.spec` 把 `AGENT_CORE_VERSION` 写入 `core-build-info.json` 并打进包内，
   这样 exe 在无环境变量时也能报出正确版本。
-- `scripts/build_core.ps1` 用 `[System.IO.File]::ReadAllText(..., UTF8)` 读 `pom.xml` 的 `<version>`，
+- `scripts/build_core.ps1` 用 `[System.IO.File]::ReadAllLines(..., UTF8)` 读 `gradle.properties` 的 `version=`，
   设置 `$env:AGENT_CORE_VERSION` 后再调用 PyInstaller。
 - `core/src/agent_core/protocol.py` 的 `CORE_VERSION = __version__`，因此 `core/hello` 的 `coreVersion`
   与 MCP `clientInfo.version` 自动跟随，**不需要新增字段**。

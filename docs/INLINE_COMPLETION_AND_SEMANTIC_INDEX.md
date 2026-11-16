@@ -499,46 +499,33 @@ RPC：
 行内补全 API 是 **Kotlin + 协程**风格（`suspend`、`Flow`、`kotlin.time.Duration`），
 用 Java 实现会非常别扭，所以 Provider 用 Kotlin 写、客户端用 Java 写，两者互相调用。
 
-Maven 默认只认 Java，需要显式加 Kotlin 编译：
+构建用 Kotlin Gradle 插件（`org.jetbrains.kotlin.jvm`）做混合编译：`src/main/kotlin` 与
+`src/main/java` 由同一套 Kotlin/Java 任务统一处理，Java 侧直接可见 Kotlin 产物：
 
-```xml
-<plugin>
-  <groupId>org.jetbrains.kotlin</groupId>
-  <artifactId>kotlin-maven-plugin</artifactId>
-  <version>${kotlin.version}</version>   <!-- 必须与平台内置 Kotlin 一致，当前 2.3.20-RC2 -->
-  <executions>
-    <execution>
-      <id>compile-kotlin</id>
-      <phase>process-sources</phase>     <!-- 早于 maven-compiler-plugin 的 compile -->
-      <goals><goal>compile</goal></goals>
-    </execution>
-  </executions>
-  <configuration>
-    <jvmTarget>21</jvmTarget>
-    <sourceDirs>
-      <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
-      <sourceDir>${project.basedir}/src/main/java</sourceDir>  <!-- 让 Kotlin 能引用 Java 类型 -->
-    </sourceDirs>
-  </configuration>
-</plugin>
+```kotlin
+// build.gradle.kts（节选）
+plugins {
+    kotlin("jvm") version "2.4.20"
+    id("org.jetbrains.intellij.platform") version "2.20.1"
+}
+
+kotlin {
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
+}
 ```
 
-生命周期顺序：
+> 历史：Maven 时代需要用 `kotlin-maven-plugin` 在 `process-sources` 阶段先编 Kotlin；
+> 迁到 Gradle（IntelliJ Platform Gradle 插件 2.x）后由 KGP 统一处理编译顺序，不存在两阶段 classpath 问题。
 
-```
-process-sources → [kotlin:compile] 产出 .class + META-INF/*.kotlin_module
-compile         → [javac] 编译 Java，classpath 里已能看到 Kotlin 产物
-```
+依赖策略（都由 IDE 类路径提供，不随插件打包）：
 
-依赖策略：
-
-| 依赖 | scope | 原因 |
+| 依赖 | 来源 | 原因 |
 |---|---|---|
-| `ide-codeinsight-inline` | provided | IDE 运行时自带，打进插件会重复类 |
-| `kotlin-stdlib` | provided | 同上 |
-| `kotlinx-coroutines-core-jvm`（`1.10.2-intellij-1`） | provided | 用 IntelliJ 内部裁剪版，避免与 IDE 自带协程冲突 |
+| `ide-codeinsight-inline` | 平台类路径 | IDE 运行时自带，打进插件会重复类 |
+| `kotlin-stdlib` | `compileOnly(kotlin("stdlib"))` | 同上 |
+| `kotlinx-coroutines-core-jvm`（`1.10.2-intellij-1`） | 平台类路径 | 用 IntelliJ 内部裁剪版，避免与 IDE 自带协程冲突 |
 
-> 教训：`kotlin.version` 与平台不一致时，可能出现"编译通过但运行时 NoSuchMethodError"，
+> 教训：Kotlin 插件版本与平台不一致时，可能出现“编译通过但运行时 NoSuchMethodError”，
 > 所以这里跟平台对齐而不是随便取最新版。
 
 ### 4.2 为什么 `since-build` 是 252
@@ -627,7 +614,7 @@ python -m agent_core --project-id demo --data-dir /tmp/agent-demo
 | 向量存储与检索 | [store.py](../core/src/agent_core/codeindex/store.py) |
 | 增量构建 + 工具 | [service.py](../core/src/agent_core/codeindex/service.py) |
 | 配置下发字段 | [protocol.py](../core/src/agent_core/protocol.py)（`ChatConfig.embedding_model`） |
-| Maven Kotlin 配置 | [pom.xml](../pom.xml) |
+| Kotlin / 平台构建配置 | [build.gradle.kts](../build.gradle.kts) |
 | 单测 | [test_completion.py](../core/tests/test_completion.py)、[test_codeindex.py](../core/tests/test_codeindex.py) |
 
 ---

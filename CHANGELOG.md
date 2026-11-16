@@ -3,6 +3,23 @@
 Mirror of `plugin.xml` `<change-notes>`: every released version gets one section here, and the
 Marketplace entry is copied from it. Core, Shell and VS Code Shell share the numbered release.
 
+## 3.1.1
+
+适配 IntelliJ IDEA 2026.3（build 263），构建系统由 Maven 迁到 Gradle。
+
+- **构建系统**：删除 `pom.xml` 与 `assembly/plugin-assembly.xml`，改为 Gradle wrapper 9.9.1 +
+  IntelliJ Platform Gradle 插件 2.20.1 + Kotlin Gradle 插件 2.4.20；`gradlew buildPlugin` 产出
+  `build/distributions/workreport-ai-assistant-<版本>.zip`，内部目录仍是 `<插件 id>/{lib,agent-core}`。
+  本机设置 `IDEA_HOME` 可直接复用已安装的 IDE，无需下载平台包；日常编译/打包走 Gradle 增量缓存。
+- **编译目标**：`gradle.properties` 的 `platformVersion` 升到 `2026.3`（本机安装为 build 263.7307.200），
+  与 2026.3 安装包的实际构建号一致；`plugin.xml` 的 `until-build` 由 `262.*` 放开到 `263.*`，
+  安装区间变为 2025.2 ~ 2026.3（`since-build` 仍为 252）。
+- **Git 依赖**：2026.3 把 Git 插件拆成多个制品，`com.jetbrains.intellij.vcs:git` 只剩插件描述文件，
+  `git4idea` 的类（`GitRepository` / `GitLineHandler` / `GitCommand`）搬到 `git-backend`。
+  Gradle 构建改用 `bundledPlugin("Git4Idea")`，直接取 IDE 安装目录里完整的 Git 插件。
+- **打包**：对 OkHttp 的传递依赖排除 `org.jetbrains.kotlin` 整组（OkHttp 拉进的
+  kotlin-stdlib 1.8.21 会盖掉 IDE 自带的 Kotlin 2.4 运行时），zip 内只留插件本体 + OkHttp/Okio。
+
 ## 3.1.0
 
 对话渲染与界面视觉重做（`docs/UI_OVERHAUL.md` 记录了设计令牌与组件清单）。

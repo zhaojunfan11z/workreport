@@ -5,7 +5,7 @@
 ### 支持的版本范围
 
 ```xml
-<idea-version since-build="252" until-build="262.*"/>
+<idea-version since-build="252" until-build="263.*"/>
 ```
 
 **兼容版本**:
@@ -13,13 +13,31 @@
 - ✅ **IntelliJ IDEA 2025.3.x** (build 253.*)
 - ✅ **IntelliJ IDEA 2026.1.x** (build 261.*)
 - ✅ **IntelliJ IDEA 2026.2.x** (build 262.*)
+- ✅ **IntelliJ IDEA 2026.3.x** (build 263.*) — 当前编译目标
 
 > **为什么从 252 开始**：编辑器 ghost text 依赖平台的 inline completion API
 > （`com.intellij.inline.completion.provider` 扩展点 + `ide-codeinsight-inline` 产物），
 > 该 API 的稳定形态从 2025.2（252）开始提供；更早的 233–251 无法编译通过。
 > 其余功能本身并不需要 252，仅 ghost text 扩展点拉高了门槛。
-> Kotlin `AgentInlineCompletionProvider` 由 Maven `kotlin-maven-plugin` 在 `process-sources` 阶段编译，
-> `kotlin-stdlib` / `kotlinx-coroutines` 为 `provided`（IDE 运行时自带）。
+> Kotlin `AgentInlineCompletionProvider` 由 Kotlin Gradle 插件编译，
+> `kotlin-stdlib` / `kotlinx-coroutines` 由 IDE 运行时提供（构建脚本里不打包它们）。
+
+### 2026.3（263）的依赖拆包
+
+263 把原本一个大包发布的 Git 插件拆成了多个制品。本仓库改用 IntelliJ Platform
+Gradle 插件的 `bundledPlugin("Git4Idea")`，直接取安装目录里完整的 Git 插件，不再手工拼制品；
+如果回退到按制品声明（Maven 时代的做法），各制品内容如下：
+
+| 制品 | 263 里的内容 | 是否需要声明 |
+|---|---|---|
+| `com.jetbrains.intellij.vcs:git` | 只剩 `META-INF/plugin.xml`（约 5 KB） | 保留（对应 `<depends>Git4Idea</depends>`） |
+| `com.jetbrains.intellij.vcs:git-backend` | `git4idea.*` 的类（`GitRepository` / `GitLineHandler` / `GitCommand` / `GitCommandResult`） | **必须声明**，否则 javac 报「程序包 git4idea.repo 不存在」 |
+| `com.jetbrains.intellij.vcs:git-shared` | `com.intellij.vcs.git.*` 与部分 `git4idea.*` 共享类 | 本插件未用到，不声明 |
+| `com.jetbrains.intellij.vcs:git-rt` | Git 编辑器/加解密等边缘类（约 20 KB） | 不需要 |
+
+另外，263 平台自带的 Kotlin 运行时是 2.4.x；`build.gradle.kts` 因此对 OkHttp 的传递依赖排除了
+`org.jetbrains.kotlin` 整组（OkHttp 拉进的 1.8.21 stdlib 会盖掉 IDE 的 2.4 运行时，
+行内补全的协程接口会链接失败）。
 
 ---
 
@@ -50,6 +68,7 @@ IntelliJ IDEA 使用以下版本号格式：`主版本。次版本。修订号`
 | 2025.3.x | 253.* | 2025 Q4 |
 | 2026.1.x | 261.* | 2026 Q1 |
 | 2026.2.x | 262.* | 2026 Q2 |
+| 2026.3.x | 263.* | 2026 Q3 |
 
 ---
 
@@ -61,12 +80,12 @@ IntelliJ IDEA 使用以下版本号格式：`主版本。次版本。修订号`
 
 ```xml
 <!-- 例如回退到 2025.1.x（必须先移除 ghost text 扩展点） -->
-<idea-version since-build="251" until-build="262.*"/>
+<idea-version since-build="251" until-build="263.*"/>
 ```
 
 **注意**: 需要确保代码没有使用新版本 API，否则在老版本 IDE 上会报错；
-且必须同时删掉 `plugin.xml` 里的 `<inline.completion.provider>` 与 Kotlin provider、
-以及 `pom.xml` 的 `ide-codeinsight-inline` 依赖，否则无法编译。
+且必须同时删掉 `plugin.xml` 里的 `<inline.completion.provider>` 与 Kotlin provider，
+否则编译时报找不到 inline completion 相关类。
 
 ### 场景 2: 只支持最新版本
 
@@ -97,34 +116,22 @@ D:/IDEA/
 └── IntelliJ IDEA 2025.3/
 ```
 
-### 方法 2: 使用 Maven 多环境构建
+### 方法 2: 切换编译平台
 
-为不同版本分别编译测试：
+Gradle 构建支持两种指定平台的方式：
 
-```xml
-<!-- pom.xml 中添加 profiles -->
-<profiles>
-    <profile>
-        <id>idea-2023.3</id>
-        <properties>
-            <idea.home>D:/IDEA/IntelliJ IDEA 2023.3</idea.home>
-        </properties>
-    </profile>
-    <profile>
-        <id>idea-2024.1</id>
-        <properties>
-            <idea.home>D:/IDEA/IntelliJ IDEA 2024.1</idea.home>
-        </properties>
-    </profile>
-</profiles>
+```powershell
+# 方式 A：指向本机安装的某个 IDEA（优先，不走网络）
+$env:IDEA_HOME = "D:/IDEA/IntelliJ IDEA 2025.3"
+.\gradlew.bat clean buildPlugin
+
+# 方式 B：按发行版本号从 JetBrains 仓库下载（需清空 IDEA_HOME）
+Remove-Item Env:IDEA_HOME
+.\gradlew.bat clean buildPlugin -PplatformVersion=2025.2
 ```
 
-使用方式：
-
-```bash
-# 为特定版本编译
-mvn clean package -P idea-2023.3
-```
+`IDEA_HOME` 的优先级高于 `platformVersion`；不指定时平台版本取自
+`gradle.properties` 的 `platformVersion`（当前为 `2026.3`）。
 
 ---
 
@@ -297,7 +304,7 @@ public void createToolWindow(Project project) {
 <!-- 插件 ID: workreport-ai-assistant-lts -->
 
 <!-- 标准版本（含编辑器 ghost text 与语义索引） -->
-<idea-version since-build="252" until-build="262.*"/>
+<idea-version since-build="252" until-build="263.*"/>
 <!-- 插件 ID: workreport-ai-assistant -->
 ```
 
@@ -315,7 +322,7 @@ public void createToolWindow(Project project) {
 
 ### 已实施
 
-✅ **收紧后的兼容策略**: 支持 2025.2.x - 2026.2.x（`since-build=252`）
+✅ **收紧后的兼容策略**: 支持 2025.2.x - 2026.3.x（`since-build=252`），编译目标为 2026.3（`263.7307.200`）
 
 ### 待验证
 
@@ -323,6 +330,7 @@ public void createToolWindow(Project project) {
 - 在 2025.2.x 上验证 ghost text（inline completion API 最早可用版本）
 - 在 2026.1.x 上验证聊天、工具、语义索引全链路
 - 在 2026.2.x 上验证 diff 确认 / 快照回退等编辑功能
+- 在 2026.3.x 上验证表格重绘 / 设置页 / 行内补全与 IDE 新 UI 主题适配
 
 ### 下一步计划
 

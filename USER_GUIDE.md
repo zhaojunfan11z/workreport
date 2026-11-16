@@ -1,6 +1,6 @@
 # Agent Coding Assistant 使用手册
 
-> 适用版本：**3.1.0** ｜ 适用 IDE：**IntelliJ IDEA 2025.2 ~ 2026.2**（`since-build=252`）
+> 适用版本：**3.1.1** ｜ 适用 IDE：**IntelliJ IDEA 2025.2 ~ 2026.3**（`since-build=252`）
 >
 > 本手册面向使用者。想了解内部实现（RPC 协议、FIM 补全原理、向量检索细节），
 > 请看 [技术详情文档](docs/INLINE_COMPLETION_AND_SEMANTIC_INDEX.md)。
@@ -54,7 +54,7 @@ JetBrains 官方文档称它为 **Inline Completion**，本插件统一译作 **
 
 | 条件 | 说明 |
 |---|---|
-| IDE 版本 | IntelliJ IDEA 2025.2 ~ 2026.2（构建号 `252.*` ~ `262.*`），更早版本无法加载 |
+| IDE 版本 | IntelliJ IDEA 2025.2 ~ 2026.3（构建号 `252.*` ~ `263.*`），更早版本无法加载 |
 | Python | **不需要安装**：zip 内已内置 `agent-core/agent-core.exe` |
 | Git4Idea | IDEA 内置，无需单独安装 |
 | 项目 | 建议在 Git 仓库内使用（Git 工具与报告 Skill 依赖它） |
@@ -62,7 +62,7 @@ JetBrains 官方文档称它为 **Inline Completion**，本插件统一译作 **
 
 ### 2.2 安装步骤
 
-1. 拿到 `workreport-ai-assistant-3.1.0.zip`（Release 下载，或本地 `powershell -File scripts/build_plugin.ps1` 生成）
+1. 拿到 `workreport-ai-assistant-3.1.1.zip`（Release 下载，或本地 `powershell -File scripts/build_plugin.ps1` 生成）
 2. IDEA → `Settings` → `Plugins` → ⚙️ → `Install Plugin from Disk...`
 3. 选择该 zip → `Restart IDE`
 4. 重启后底部出现 **AgentCoder** 工具窗口；菜单 `Tools` 下多出 **「模型设置…」** 与 `生成今日日报`
@@ -83,7 +83,7 @@ JetBrains 官方文档称它为 **Inline Completion**，本插件统一译作 **
 - Agent 面板输入区工具栏的 **「设置」** 按钮
 
 > 找不到入口时也可以按 **`Ctrl+Shift+A`**，输入 `模型设置` 直接跳转；
-> 如果 `Tools` 菜单里没有这一项，说明装的是 v2.2.0 或更早的包，需重新安装 `3.1.0` 的 zip。
+> 如果 `Tools` 菜单里没有这一项，说明装的是 v2.2.0 或更早的包，需重新安装 `3.1.1` 的 zip。
 
 ### 3.2 配置模型（必做）
 
@@ -749,7 +749,7 @@ curl http://<网关地址>/v1/models -H "Authorization: Bearer sk-xxx"
 ### 11.10 读取日志报「读取失败: Input length = 1」
 
 这是 Java 的 `MalformedInputException`，意思是「按 UTF-8 解不开」。Windows 上很常见：PowerShell 5 的
-`>` / `Tee-Object` 重定向会写出 **UTF-16LE（带 BOM）**，Maven、旧工具的输出常是 **GBK**。
+`>` / `Tee-Object` 重定向会写出 **UTF-16LE（带 BOM）**，Gradle、旧工具的输出常是 **GBK**。
 
 - v2.4.2 起 `read_file` / `search_code` 自动识别：BOM（UTF-8 / UTF-16 LE / BE）→ 严格 UTF-8 → GBK →
   最后有损 UTF-8，不再直接报错；读到非 UTF-8 文件时，结果末尾会附一行「（文件编码 UTF-16LE (BOM)，已按原编码解码）」
@@ -886,7 +886,7 @@ v2.4.7 及更早版本：同一个会话聊得越久，下一次发送前的等�
 
 ```powershell
 # 只编译插件
-mvn -q -DskipTests compile
+.\gradlew.bat --console=plain classes
 
 # 一键打包含内置 Core 的 zip（需要 Python 3.9+；有 cargo 时顺便编译 Rust 加速）
 powershell -File scripts/build_plugin.ps1
@@ -895,7 +895,8 @@ powershell -File scripts/build_plugin.ps1
 powershell -File scripts/verify_all.ps1
 ```
 
-产物：`target/workreport-ai-assistant-<版本>.zip`
+产物：`build/distributions/workreport-ai-assistant-<版本>.zip`
+（本机装了 IDEA 时先设 `IDEA_HOME`，可省掉 Gradle 下载平台包）
 
 ### 12.4 想深入了解实现
 
