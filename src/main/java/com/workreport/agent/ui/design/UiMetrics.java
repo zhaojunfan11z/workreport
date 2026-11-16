@@ -46,15 +46,15 @@ public final class UiMetrics {
     }
 
     public static int radiusBubble() {
-        return JBUI.scale(12);
-    }
-
-    public static int radiusCard() {
         return JBUI.scale(10);
     }
 
-    public static int radiusChip() {
+    public static int radiusCard() {
         return JBUI.scale(8);
+    }
+
+    public static int radiusChip() {
+        return JBUI.scale(6);
     }
 
     public static int radiusInput() {
@@ -62,7 +62,7 @@ public final class UiMetrics {
     }
 
     public static int radiusButton() {
-        return JBUI.scale(6);
+        return JBUI.scale(8);
     }
 
     // Line height of body text: a bit more air than the raw font metrics report, which keeps

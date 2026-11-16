@@ -37,6 +37,16 @@ public final class UiTheme {
     public static final Color WARN = JBColor.namedColor("Notifications.warningForeground",
             new JBColor(new Color(0xB26B00), new Color(0xD9A343)));
 
+    // User bubble: a neutral wash instead of an accent fill, so the text keeps the normal
+    // foreground colour instead of flipping to white.
+    // 用户气泡：中性灰底而不是强调色实底，文字沿用正文色，不做白字反色。
+    public static final Color BUBBLE = new JBColor(new Color(0xF1F2F4), new Color(0x3A3B3E));
+
+    // Primary action (send) uses Qoder's green rather than the IDE accent.
+    // 主操作（发送）用 Qoder 绿，不跟 IDE 强调蓝。
+    public static final Color SEND = new JBColor(new Color(0x16A34A), new Color(0x2FC26E));
+    public static final Color SEND_HOVER = new JBColor(new Color(0x128A3E), new Color(0x45D07F));
+
     // Panel background / foreground resolve live, so dark mode and high contrast keep working.
     // 面板底色与正文色实时解析，深色与高对比主题都不会出现死色。
     public static Color surface() {
