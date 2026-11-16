@@ -7,7 +7,6 @@ import com.workreport.agent.ui.design.UiTheme;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Arc2D;
-import java.awt.geom.RoundRectangle2D;
 
 // Thin status line that lives directly above the composer.
 // Left: a spinning accent arc plus the current state text; right: a muted chip with the model and
@@ -116,9 +115,8 @@ public final class StatusRow extends JComponent {
             int chipHeight = Math.min(height - JBUI.scale(2), metrics.getHeight() + JBUI.scale(2));
             int chipY = (height - chipHeight) / 2;
             int chipX = getWidth() - metaWidth;
-            g2.setColor(UiTheme.SUBTLE);
-            g2.fill(new RoundRectangle2D.Float(chipX, chipY, metaWidth, chipHeight,
-                    UiMetrics.radiusChip(), UiMetrics.radiusChip()));
+            // Qoder keeps the right-hand meta as plain muted text instead of a filled chip.
+            // Qoder 右侧的模型/用量是纯灰小字，没有底色 chip。
             g2.setColor(UiTheme.muted());
             int baseline = chipY + (chipHeight - metrics.getHeight()) / 2 + metrics.getAscent();
             g2.drawString(meta, chipX + padX, baseline);

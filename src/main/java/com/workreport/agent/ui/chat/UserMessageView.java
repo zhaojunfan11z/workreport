@@ -33,7 +33,7 @@ public final class UserMessageView extends ChatRowView {
         for (String line : body.split("\n", -1)) {
             InlineLayout layout = new InlineLayout(List.of(InlineSpan.plain(line.isEmpty() ? " " : line)),
                     UiTheme.font(), false);
-            layout.setColorOverride(UserMessageView::bubbleForeground);
+            layout.setColorOverride(UiTheme::text);
             lines.add(layout);
         }
         if (attachmentNames != null) {
@@ -43,7 +43,7 @@ public final class UserMessageView extends ChatRowView {
             String caption = AgentBundle.message("composer.attachments", String.join("、", attachments));
             InlineLayout files = new InlineLayout(List.of(InlineSpan.plain(caption).withItalic()),
                     UiTheme.font(), false);
-            files.setColorOverride(() -> UiTheme.withAlpha(bubbleForeground(), 190));
+            files.setColorOverride(() -> UiTheme.withAlpha(UiTheme.text(), 160));
             lines.add(files);
         }
         plain = flat(body, attachments);
@@ -61,20 +61,9 @@ public final class UserMessageView extends ChatRowView {
         return text.replace("\r\n", "\n").replace('\r', '\n');
     }
 
-    // Solid accent in light themes, soft accent in dark ones: white-on-accent looks harsh on a
-    // dark background, and the text colour is resolved live so a theme switch needs no rebuild.
-    // 浅色主题用实底强调色，深色主题用半透明强调色（深底上白字太刺眼）；文字色实时解析。
-    private static boolean darkSurface() {
-        Color surface = UiTheme.surface();
-        int luminance = (int) (0.299 * surface.getRed() + 0.587 * surface.getGreen()
-                + 0.114 * surface.getBlue());
-        return luminance < 128;
-    }
-
-    private static Color bubbleForeground() {
-        return darkSurface() ? UiTheme.text() : Color.WHITE;
-    }
-
+    // Neutral bubble background: Qoder keeps the user message grey and the text in the normal
+    // foreground colour, instead of the white-on-accent block this view used to paint.
+    // 中性气泡底色：Qoder 的用户消息是灰底正文色，而不是过去的强调色实底白字。
     @Override
     protected int contentWidth(int maxWidth) {
         int textWidth = maxWidth - padX * 2;
@@ -102,7 +91,7 @@ public final class UserMessageView extends ChatRowView {
     @Override
     protected void paintBlock(Graphics2D g2, int width, int height) {
         int arc = UiMetrics.radiusBubble();
-        g2.setColor(darkSurface() ? UiTheme.withAlpha(UiTheme.ACCENT, 48) : UiTheme.ACCENT);
+        g2.setColor(UiTheme.BUBBLE);
         g2.fillRoundRect(0, 0, width, height, arc, arc);
 
         int textWidth = Math.max(24, width - padX * 2);
